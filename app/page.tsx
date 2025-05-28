@@ -56,7 +56,7 @@ export default function Home() {
                     <Button
                       size="lg"
                       variant="outline"
-                      className="border-white text-white hover:bg-white/10 w-full sm:w-auto"
+                      className="border border-white bg-white text-black hover:bg-gray-100 transition-colors duration-200 w-full sm:w-auto"
                     >
                       Se connecter
                     </Button>

@@ -29,6 +29,7 @@ export function TaskHeader() {
 
         {/* Version desktop */}
         <div className="hidden md:flex items-center gap-4">
+          <span className="text-white font-medium mr-2">{user?.name || "Utilisateur"}</span>
           <Button onClick={() => setIsDialogOpen(true)} className="bg-[#56D7EA] hover:bg-[#56D7EA]/90 gap-2">
             <Plus className="h-4 w-4" />
             Nouvelle tâche

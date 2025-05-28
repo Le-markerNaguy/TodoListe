@@ -1,5 +1,6 @@
 "use client"
 
+import { useAuth } from "@/components/auth-provider"
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { type Task, useTaskContext } from "@/components/task-provider"
@@ -25,12 +26,29 @@ import {
 import Image from "next/image"
 
 export default function TaskDetailPage() {
+  const { user, loading } = useAuth()
   const params = useParams()
   const router = useRouter()
   const { tasks, deleteTask } = useTaskContext()
   const [task, setTask] = useState<Task | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+
+  // Redirection si non connecté (sécurité côté client)
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login")
+    }
+  }, [loading, user, router])
+
+  // Affichage d'un écran de chargement si l'utilisateur n'est pas prêt
+  if (loading || !user) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center">
+        <p className="text-white">Chargement...</p>
+      </div>
+    )
+  }
 
   useEffect(() => {
     const fetchTask = async () => {
