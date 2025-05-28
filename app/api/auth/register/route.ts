@@ -2,7 +2,6 @@ import { NextResponse } from "next/server"
 import { hash } from "bcrypt"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
-import { sign } from "jsonwebtoken"
 
 const userSchema = z.object({
   name: z.string().min(2, { message: "Le nom doit contenir au moins 2 caractères" }),
@@ -48,19 +47,7 @@ export async function POST(request: Request) {
       },
     })
 
-    // Créer un token JWT
-    const token = require('jsonwebtoken').sign(
-      { id: user.id, email: user.email },
-      process.env.JWT_SECRET || "secret",
-      { expiresIn: "1d" }
-    )
-
-    return NextResponse.json({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      token, // Le JWT est retourné ici
-    }, { status: 201 })
+    return NextResponse.json(user, { status: 201 })
   } catch (error) {
     console.error("Erreur lors de l'inscription:", error)
     return NextResponse.json({ error: "Erreur lors de l'inscription" }, { status: 500 })

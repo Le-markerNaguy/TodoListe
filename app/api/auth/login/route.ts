@@ -39,13 +39,30 @@ export async function POST(request: Request) {
     }
 
     // Créer un token JWT
-    const token = sign({ id: user.id, email: user.email }, process.env.JWT_SECRET || "secret", { expiresIn: "1d" })
+    const token = sign({ id: user.id, email: user.email }, process.env.JWT_SECRET || "secret", { expiresIn: "7d" })
+
+    // Créer une session
+    const session = await prisma.session.create({
+      data: {
+        sessionToken: token,
+        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 jours
+        userId: user.id,
+      },
+    })
+
+    // Définir le cookie de session
+    const cookieStore = await cookies();
+    cookieStore.set("session_token", token, {
+      httpOnly: true,
+      path: "/",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 7 * 24 * 60 * 60, // 7 jours
+    })
 
     return NextResponse.json({
       id: user.id,
       name: user.name,
       email: user.email,
-      token, // Le JWT est retourné ici
     })
   } catch (error) {
     console.error("Erreur lors de la connexion:", error)

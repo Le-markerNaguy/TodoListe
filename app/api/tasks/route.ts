@@ -1,30 +1,24 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { getServerSession } from "@/lib/auth"
 import { z } from "zod"
-import { verify } from "jsonwebtoken"
-
-// Helper pour extraire l'utilisateur du JWT
-function getUserFromAuthHeader(request: Request) {
-  const auth = request.headers.get("authorization")
-  if (!auth || !auth.startsWith("Bearer ")) return null
-  const token = auth.replace("Bearer ", "")
-  try {
-    return verify(token, process.env.JWT_SECRET || "secret") as { id: string; email: string }
-  } catch {
-    return null
-  }
-}
 
 // Récupérer toutes les tâches de l'utilisateur
-export async function GET(request: Request) {
-  const user = getUserFromAuthHeader(request)
-  if (!user) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
-  }
+export async function GET() {
   try {
+    const session = await getServerSession()
+
+    if (!session) {
+      return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
+    }
+
     const tasks = await prisma.task.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: "desc" },
+      where: {
+        userId: session.id,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
     })
 
     return NextResponse.json(tasks)
@@ -43,11 +37,13 @@ const taskSchema = z.object({
 })
 
 export async function POST(request: Request) {
-  const user = getUserFromAuthHeader(request)
-  if (!user) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
-  }
   try {
+    const session = await getServerSession()
+
+    if (!session) {
+      return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
+    }
+
     const body = await request.json()
 
     // Validation des données
@@ -64,7 +60,7 @@ export async function POST(request: Request) {
         description: description || "",
         priority,
         dueDate: dueDate ? new Date(dueDate) : null,
-        userId: user.id,
+        userId: session.id,
       },
     })
 

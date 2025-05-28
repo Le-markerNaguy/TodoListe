@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2 } from "lucide-react"
 import { z } from "zod"
-import { useRouter } from "next/navigation"
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Email invalide" }),
@@ -18,7 +17,6 @@ const loginSchema = z.object({
 
 export function LoginForm() {
   const { login } = useAuth()
-  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
     email: "",
@@ -60,8 +58,6 @@ export function LoginForm() {
 
       // Si la validation réussit, tenter de se connecter
       await login(formData.email, formData.password)
-      // Rediriger vers /tasks après connexion
-      router.push("/tasks")
     } catch (error) {
       console.error("Erreur de connexion:", error)
     } finally {
