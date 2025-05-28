@@ -1,32 +1,35 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getServerSession } from "@/lib/auth"
 import { z } from "zod"
+import { verify } from "jsonwebtoken"
+
+function getUserFromAuthHeader(request: Request) {
+  const auth = request.headers.get("authorization")
+  if (!auth || !auth.startsWith("Bearer ")) return null
+  const token = auth.replace("Bearer ", "")
+  try {
+    return verify(token, process.env.JWT_SECRET || "secret") as { id: string; email: string }
+  } catch {
+    return null
+  }
+}
 
 // Récupérer une tâche spécifique
 export async function GET(request: Request, { params }: { params: { id: string } }) {
+  const user = getUserFromAuthHeader(request)
+  if (!user) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
+  }
   try {
-    const session = await getServerSession()
-
-    if (!session) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
-    }
-
     const task = await prisma.task.findUnique({
-      where: {
-        id: params.id,
-      },
+      where: { id: params.id },
     })
-
     if (!task) {
       return NextResponse.json({ error: "Tâche non trouvée" }, { status: 404 })
     }
-
-    // Vérifier que la tâche appartient à l'utilisateur
-    if (task.userId !== session.id) {
+    if (task.userId !== user.id) {
       return NextResponse.json({ error: "Non autorisé" }, { status: 403 })
     }
-
     return NextResponse.json(task)
   } catch (error) {
     console.error("Erreur lors de la récupération de la tâche:", error)
@@ -44,42 +47,30 @@ const taskUpdateSchema = z.object({
 })
 
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
+  const user = getUserFromAuthHeader(request)
+  if (!user) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
+  }
   try {
-    const session = await getServerSession()
-
-    if (!session) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
-    }
-
     const body = await request.json()
-
     // Validation des données
     const result = taskUpdateSchema.safeParse(body)
     if (!result.success) {
       return NextResponse.json({ error: "Données invalides", details: result.error.format() }, { status: 400 })
     }
-
-    // Vérifier que la tâche existe et appartient à l'utilisateur
+    // Vérifier que la tâche existe
     const existingTask = await prisma.task.findUnique({
-      where: {
-        id: params.id,
-      },
+      where: { id: params.id },
     })
-
     if (!existingTask) {
       return NextResponse.json({ error: "Tâche non trouvée" }, { status: 404 })
     }
-
-    if (existingTask.userId !== session.id) {
+    if (existingTask.userId !== user.id) {
       return NextResponse.json({ error: "Non autorisé" }, { status: 403 })
     }
-
     const { title, description, priority, dueDate, completed } = result.data
-
     const updatedTask = await prisma.task.update({
-      where: {
-        id: params.id,
-      },
+      where: { id: params.id },
       data: {
         ...(title && { title }),
         ...(description !== undefined && { description }),
@@ -90,7 +81,6 @@ export async function PUT(request: Request, { params }: { params: { id: string }
         ...(completed !== undefined && { completed }),
       },
     })
-
     return NextResponse.json(updatedTask)
   } catch (error) {
     console.error("Erreur lors de la mise à jour de la tâche:", error)
@@ -100,34 +90,24 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
 // Supprimer une tâche
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+  const user = getUserFromAuthHeader(request)
+  if (!user) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
+  }
   try {
-    const session = await getServerSession()
-
-    if (!session) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
-    }
-
-    // Vérifier que la tâche existe et appartient à l'utilisateur
+    // Vérifier que la tâche existe
     const existingTask = await prisma.task.findUnique({
-      where: {
-        id: params.id,
-      },
+      where: { id: params.id },
     })
-
     if (!existingTask) {
       return NextResponse.json({ error: "Tâche non trouvée" }, { status: 404 })
     }
-
-    if (existingTask.userId !== session.id) {
+    if (existingTask.userId !== user.id) {
       return NextResponse.json({ error: "Non autorisé" }, { status: 403 })
     }
-
     await prisma.task.delete({
-      where: {
-        id: params.id,
-      },
+      where: { id: params.id },
     })
-
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Erreur lors de la suppression de la tâche:", error)

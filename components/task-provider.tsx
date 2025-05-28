@@ -51,7 +51,11 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const fetchTasks = async () => {
     setTasksLoading(true)
     try {
-      const response = await fetch("/api/tasks")
+      const response = await fetch("/api/tasks", {
+        headers: {
+          ...getAuthHeader(),
+        },
+      })
       const contentType = response.headers.get("content-type")
       let data = null
       if (contentType && contentType.includes("application/json")) {
@@ -105,6 +109,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...getAuthHeader(),
         },
         body: JSON.stringify(task),
       })
@@ -134,10 +139,11 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   // Mettre à jour une tâche existante
   const updateTask = async (id: string, updates: Partial<Omit<Task, "id" | "createdAt">>) => {
     try {
-      const response = await fetch(`/api/tasks/${id}`, {
+      const response = await fetch(`/api/tasks/${id}` , {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
+          ...getAuthHeader(),
         },
         body: JSON.stringify(updates),
       })
@@ -167,8 +173,11 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   // Supprimer une tâche
   const deleteTask = async (id: string) => {
     try {
-      const response = await fetch(`/api/tasks/${id}`, {
+      const response = await fetch(`/api/tasks/${id}` , {
         method: "DELETE",
+        headers: {
+          ...getAuthHeader(),
+        },
       })
 
       if (!response.ok) {
@@ -197,6 +206,9 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await fetch(`/api/tasks/${id}/toggle`, {
         method: "PATCH",
+        headers: {
+          ...getAuthHeader(),
+        },
       })
 
       if (!response.ok) {
@@ -241,4 +253,13 @@ export function useTaskContext() {
     throw new Error("useTaskContext doit être utilisé à l'intérieur d'un TaskProvider")
   }
   return context
+}
+
+// Helper pour obtenir le token JWT du localStorage
+function getAuthHeader(): Record<string, string> {
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("token")
+    if (token) return { Authorization: `Bearer ${token}` }
+  }
+  return {}
 }

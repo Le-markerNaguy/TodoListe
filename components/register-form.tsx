@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2 } from "lucide-react"
 import { z } from "zod"
+import { useRouter } from "next/navigation"
 
 const registerSchema = z
   .object({
@@ -24,6 +25,7 @@ const registerSchema = z
 
 export function RegisterForm() {
   const { register } = useAuth()
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
@@ -67,6 +69,8 @@ export function RegisterForm() {
 
       // Si la validation réussit, tenter de s'inscrire
       await register(formData.name, formData.email, formData.password)
+      // Rediriger vers /tasks après inscription
+      router.push("/tasks")
     } catch (error) {
       console.error("Erreur d'inscription:", error)
     } finally {
