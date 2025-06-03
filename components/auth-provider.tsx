@@ -30,29 +30,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Vérifier si l'utilisateur est connecté au chargement
   useEffect(() => {
-    const checkAuth = async () => {
+    // JWT stateless: check localStorage for token and decode
+    const token = typeof window !== "undefined" ? localStorage.getItem("jwt_token") : null
+    if (token) {
       try {
-        const response = await fetch("/api/auth/session")
-        const contentType = response.headers.get("content-type")
-        let data = null
-        if (contentType && contentType.includes("application/json")) {
-          data = await response.json()
-        } else {
-          const text = await response.text()
-          throw new Error("Réponse inattendue du serveur: " + text)
+        // Decode JWT payload (base64)
+        const payload = JSON.parse(atob(token.split(".")[1]))
+        if (payload && payload.id) {
+          setUser({ id: payload.id, name: payload.name, email: payload.email })
         }
-
-        if (data && data.id) {
-          setUser(data)
-        }
-      } catch (error) {
-        console.error("Erreur lors de la vérification de l'authentification:", error)
-      } finally {
-        setLoading(false)
+      } catch (e) {
+        setUser(null)
       }
+    } else {
+      setUser(null)
     }
-
-    checkAuth()
+    setLoading(false)
   }, [])
 
   // Rediriger l'utilisateur en fonction de son état d'authentification
@@ -86,6 +79,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const userData = await response.json()
+      // Stocker le token JWT dans localStorage
+      if (userData.token) {
+        localStorage.setItem("jwt_token", userData.token)
+      }
       setUser(userData)
       // Redirige vers /tasks/[id] si id existe, sinon /tasks
       if (userData && userData.id) {

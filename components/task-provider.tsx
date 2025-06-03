@@ -51,7 +51,11 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const fetchTasks = async () => {
     setTasksLoading(true)
     try {
-      const response = await fetch("/api/tasks")
+      // Get JWT from localStorage
+      const token = typeof window !== "undefined" ? localStorage.getItem("jwt_token") : null
+      const response = await fetch("/api/tasks", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
       const contentType = response.headers.get("content-type")
       let data = null
       if (contentType && contentType.includes("application/json")) {
@@ -60,7 +64,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         const text = await response.text()
         throw new Error("Réponse inattendue du serveur: " + text)
       }
-      setTasks(data)
+      setTasks(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error("Erreur lors du chargement des tâches:", error)
       toast({
@@ -101,10 +105,13 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   // Ajouter une nouvelle tâche
   const addTask = async (task: Omit<Task, "id" | "createdAt">) => {
     try {
+      // Récupérer le JWT du localStorage
+      const token = typeof window !== "undefined" ? localStorage.getItem("jwt_token") : null
       const response = await fetch("/api/tasks", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(task),
       })
@@ -167,8 +174,11 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   // Supprimer une tâche
   const deleteTask = async (id: string) => {
     try {
+      // Récupérer le JWT du localStorage
+      const token = typeof window !== "undefined" ? localStorage.getItem("jwt_token") : null
       const response = await fetch(`/api/tasks/${id}`, {
         method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
 
       if (!response.ok) {

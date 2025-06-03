@@ -1,31 +1,19 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getServerSession } from "@/lib/auth"
+import { getUserFromToken } from "@/lib/auth"
 import { z } from "zod"
 
 // Récupérer toutes les tâches de l'utilisateur
-export async function GET() {
-  try {
-    const session = await getServerSession()
-
-    if (!session) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
-    }
-
-    const tasks = await prisma.task.findMany({
-      where: {
-        userId: session.id,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    })
-
-    return NextResponse.json(tasks)
-  } catch (error) {
-    console.error("Erreur lors de la récupération des tâches:", error)
-    return NextResponse.json({ error: "Erreur lors de la récupération des tâches" }, { status: 500 })
+export async function GET(req: NextRequest) {
+  // Accept JWT from either Authorization header or cookie for flexibility
+  let auth = req.headers.get("authorization") || undefined
+  if (!auth && req.cookies.has("jwt_token")) {
+    auth = req.cookies.get("jwt_token")?.value
   }
+  const user = await getUserFromToken(auth)
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const tasks = await prisma.task.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } })
+  return NextResponse.json(tasks)
 }
 
 // Créer une nouvelle tâche
@@ -36,14 +24,16 @@ const taskSchema = z.object({
   dueDate: z.string().optional().nullable(),
 })
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  // Accept JWT from either Authorization header or cookie for flexibility
+  let auth = request.headers.get("authorization") || undefined
+  if (!auth && request.cookies.has("jwt_token")) {
+    auth = request.cookies.get("jwt_token")?.value
+  }
+  const user = await getUserFromToken(auth)
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
   try {
-    const session = await getServerSession()
-
-    if (!session) {
-      return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
-    }
-
     const body = await request.json()
 
     // Validation des données
@@ -60,7 +50,7 @@ export async function POST(request: Request) {
         description: description || "",
         priority,
         dueDate: dueDate ? new Date(dueDate) : null,
-        userId: session.id,
+        userId: user.id,
       },
     })
 

@@ -1,44 +1,15 @@
-import { cookies } from "next/headers"
-import { prisma } from "./prisma"
 import { verify } from "jsonwebtoken"
 
-export async function getServerSession() {
-  const sessionToken = (await cookies()).get("session_token")?.value
-
-  if (!sessionToken) {
-    return null
-  }
-
+// Stateless JWT authentication: get user from JWT in Authorization header
+export async function getUserFromToken(token: string | undefined) {
+  if (!token) return null
   try {
-    // Vérifier le token
-    const decoded = verify(sessionToken, process.env.JWT_SECRET || "secret") as { id: string }
-
-    // Vérifier si la session existe
-    const session = await prisma.session.findFirst({
-      where: {
-        sessionToken,
-        expires: {
-          gt: new Date(),
-        },
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-    })
-
-    if (!session) {
-      return null
-    }
-
-    return session.user
+    // Remove 'Bearer ' prefix if present
+    const jwt = token.startsWith("Bearer ") ? token.slice(7) : token
+    const decoded = verify(jwt, process.env.JWT_SECRET || "secret") as { id: string; name?: string; email?: string }
+    return { id: decoded.id, name: decoded.name, email: decoded.email }
   } catch (error) {
-    console.error("Token invalide:", error)
+    console.error("Invalid JWT:", error)
     return null
   }
 }

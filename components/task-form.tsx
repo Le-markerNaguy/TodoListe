@@ -181,7 +181,7 @@ export function TaskForm({ task, onSuccess }: TaskFormProps) {
           variant="outline"
           onClick={onSuccess}
           disabled={isLoading}
-          className="border-white/20 text-white hover:bg-white/10"
+          className="bg-white text-black border-white hover:bg-white/90 hover:text-black"
         >
           Annuler
         </Button>
