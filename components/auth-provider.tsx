@@ -30,23 +30,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Vérifier si l'utilisateur est connecté au chargement
   useEffect(() => {
-    // JWT stateless: check localStorage for token and decode
-    const token = typeof window !== "undefined" ? localStorage.getItem("jwt_token") : null
-    if (token) {
+    // Nouvelle version : fetch /api/auth/session pour récupérer l'utilisateur courant via cookie httpOnly
+    async function fetchSession() {
+      setLoading(true)
       try {
-        // Decode JWT payload (base64)
-        const payload = JSON.parse(atob(token.split(".")[1]))
-        if (payload && payload.id) {
-          setUser({ id: payload.id, name: payload.name, email: payload.email })
+        const res = await fetch("/api/auth/session", { credentials: "include" })
+        const data = await res.json()
+        if (data && data.user) {
+          setUser(data.user)
+        } else {
+          setUser(null)
         }
-      } catch (e) {
+      } catch {
         setUser(null)
+      } finally {
+        setLoading(false)
       }
-    } else {
-      setUser(null)
     }
-    setLoading(false)
+    fetchSession()
   }, [])
+
+  // Rediriger automatiquement vers /login si l'utilisateur n'est pas connecté et qu'il n'est pas déjà sur /login ou /register
+  useEffect(() => {
+    if (!loading) {
+      const publicRoutes = ["/login", "/register"]
+      const isPublicRoute = publicRoutes.includes(pathname)
+      if (!user && !isPublicRoute) {
+        router.push("/login")
+      }
+    }
+  }, [user, loading, pathname, router])
 
   // Rediriger l'utilisateur en fonction de son état d'authentification
   useEffect(() => {
@@ -71,20 +84,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ email, password }),
+        credentials: "include",
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || "Erreur de connexion")
+        let errorMsg = "Erreur de connexion"
+        try {
+          const error = await response.json()
+          errorMsg = error.error || errorMsg
+        } catch (e) {
+          // ignore JSON parse error
+        }
+        throw new Error(errorMsg)
       }
 
-      const userData = await response.json()
-      // Stocker le token JWT dans localStorage
+      // Récupérer le token du backend (dans le body JSON)
+      let userData: any = {}
+      try {
+        userData = await response.json()
+      } catch (e) {
+        // ignore JSON parse error
+      }
       if (userData.token) {
         localStorage.setItem("jwt_token", userData.token)
       }
       setUser(userData)
-      // Redirige vers /tasks/[id] si id existe, sinon /tasks
       if (userData && userData.id) {
         router.push(`/tasks/${userData.id}`)
       } else {
@@ -121,18 +145,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const error = await response.json()
         throw new Error(error.error || "Erreur d'inscription")
       }
-
-      const userData = await response.json()
-      setUser(userData)
-      // Redirige vers /tasks/[id] si id existe, sinon /tasks
-      if (userData && userData.id) {
-        router.push(`/tasks/${userData.id}`)
-      } else {
-        router.push("/tasks")
-      }
+      // Redirige vers /login après inscription
+      router.push("/login")
       toast({
         title: "Inscription réussie",
-        description: "Bienvenue sur TaskMaster!",
+        description: "Bienvenue sur TaskMaster! Vous pouvez maintenant vous connecter.",
       })
     } catch (error) {
       toast({
@@ -150,8 +167,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await fetch("/api/auth/logout", {
         method: "POST",
+        credentials: "include",
       })
-
       setUser(null)
       router.push("/login")
       toast({
