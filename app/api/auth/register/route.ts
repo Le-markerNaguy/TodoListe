@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { hash } from "bcrypt"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { sign } from "jsonwebtoken"
 
 const userSchema = z.object({
   name: z.string().min(2, { message: "Le nom doit contenir au moins 2 caractères" }),
@@ -47,7 +48,20 @@ export async function POST(request: Request) {
       },
     })
 
-    return NextResponse.json(user, { status: 201 })
+    // Générer un token JWT
+    const token = sign({ id: user.id, name: user.name, email: user.email }, process.env.JWT_SECRET || "secret", { expiresIn: "7d" })
+
+    // Définir le cookie httpOnly
+    const response = NextResponse.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+    }, { status: 201 })
+    response.headers.set(
+      "Set-Cookie",
+      `jwt_token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800`
+    )
+    return response
   } catch (error) {
     console.error("Erreur lors de l'inscription:", error)
     return NextResponse.json({ error: "Erreur lors de l'inscription" }, { status: 500 })

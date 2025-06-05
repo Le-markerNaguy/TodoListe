@@ -141,10 +141,12 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   // Mettre à jour une tâche existante
   const updateTask = async (id: string, updates: Partial<Omit<Task, "id" | "createdAt">>) => {
     try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("jwt_token") : null
       const response = await fetch(`/api/tasks/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(updates),
       })

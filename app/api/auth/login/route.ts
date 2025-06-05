@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     }
 
     // Créer un token JWT
-    const token = sign({ id: user.id, email: user.email }, process.env.JWT_SECRET || "secret", { expiresIn: "7d" })
+    const token = sign({ id: user.id, email: user.email, name: user.name }, process.env.JWT_SECRET || "secret", { expiresIn: "7d" })
 
     // Retourner le JWT et les infos utilisateur
     return NextResponse.json({

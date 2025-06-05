@@ -22,13 +22,18 @@ const taskUpdateSchema = z.object({
   completed: z.boolean().optional(),
 })
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, context: { params: { id: string } }) {
+  const { params } = context
   const auth = req.headers.get("authorization") || undefined
   const user = await getUserFromToken(auth)
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const existingTask = await prisma.task.findUnique({ where: { id: params.id } })
   if (!existingTask || existingTask.userId !== user.id) return NextResponse.json({ error: "Not found" }, { status: 404 })
   const data = await req.json()
+  // Correction: convertir dueDate en Date si présent et string
+  if (data.dueDate && typeof data.dueDate === "string") {
+    data.dueDate = new Date(data.dueDate)
+  }
   const updated = await prisma.task.update({ where: { id: params.id }, data })
   return NextResponse.json(updated)
 }
